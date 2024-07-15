@@ -27,7 +27,7 @@ const Sidebar = () => {
                         </span> Students</a></li>
                         <li><a href="submissions"><span className="material-symbols-outlined">
                             assignment
-                        </span> Submissions</a></li>
+                        </span> Assignments</a></li>
                         <li><a href="community"><span className="material-symbols-outlined">
                             forum
                         </span> Community</a></li>

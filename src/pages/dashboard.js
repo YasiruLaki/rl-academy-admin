@@ -246,7 +246,7 @@ function Dashboard() {
                                     <label>Type your Announcement here:</label>
                                     <textarea value={announcementText} onChange={(e) => setAnnouncementText(e.target.value)} required></textarea>
                                 </div>
-                                <button type="submit">Add Announcement</button>
+                                <button className='announcement-modal-button' type="submit">Add Announcement</button>
                             </form>
                         </div>
                     </Modal>
