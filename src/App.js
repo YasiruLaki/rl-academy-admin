@@ -7,6 +7,7 @@ import Submissions from './pages/submissions';
 import Login from './pages/login';
 import Profile from './pages/profile';
 import Sidebar from './components/sidebar';
+import Community from './pages/community';
 import './App.css';
 
 const App = () => {
@@ -20,6 +21,7 @@ const App = () => {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/courses" element={<Courses />} />
             <Route path="/submissions" element={<Submissions />} />
+            <Route path="/community" element={<Community />} />
             <Route path="/profile" element={<Profile />} />
           </Routes>
         </div>

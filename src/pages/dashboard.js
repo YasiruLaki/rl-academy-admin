@@ -12,12 +12,17 @@ function Dashboard() {
     const [userData, setUserData] = useState(null);
     const [upcomingClass, setUpcomingClass] = useState(null);
     const [error, setError] = useState('');
-    const [loading, setLoading] = useState(true); 
+    const [loading, setLoading] = useState(true);
     const [coursesCount, setCoursesCount] = useState(0);
     const [submissionsCount, setSubmissionsCount] = useState(0);
-    const [isModalOpen, setIsModalOpen] = useState(false); // State for modal
     const [announcementText, setAnnouncementText] = useState(''); // State for form input
     const [announcements, setAnnouncements] = useState([]);
+    const [upcomingClasses, setUpcomingClasses] = useState([]);
+    const [isAddClassModalOpen, setIsAddClassModalOpen] = useState(false);
+    const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
+    const [topic, setTopic] = useState('');
+    const [startTime, setStartTime] = useState('');
+    const [duration, setDuration] = useState(30);
 
     // Fetch user data
     useEffect(() => {
@@ -69,24 +74,24 @@ function Dashboard() {
                     const upcomingClasses = classes
                         .filter(c => c.time > now)
                         .sort((a, b) => a.time - b.time);
-                    setUpcomingClass(upcomingClasses[0] || null);
+                    setUpcomingClass(upcomingClasses);
                 } catch (error) {
                     console.error('Error fetching upcoming classes:', error);
                     setError('Failed to fetch upcoming classes. Please try again.');
                 }
-             finally {
-                setLoading(false); 
+                finally {
+                    setLoading(false);
+                }
             }
-            }
-            
+
         };
-        
+
 
         if (userData) {
             fetchUpcomingClasses();
 
         }
-        
+
     }, [userData]);
 
     // Fetch announcements
@@ -114,7 +119,7 @@ function Dashboard() {
     };
 
     useEffect(() => {
-        fetchAnnouncements(); 
+        fetchAnnouncements();
 
     }, []);
 
@@ -135,7 +140,7 @@ function Dashboard() {
                 author: currentUser.email,
             });
 
-            setIsModalOpen(false);
+            setIsAnnouncementModalOpen(false);
             setAnnouncementText('');
             alert('Announcement added successfully!');
             fetchAnnouncements(); // Fetch updated announcements
@@ -144,6 +149,65 @@ function Dashboard() {
             setError('Failed to add announcement. Please try again.');
         }
     };
+
+
+    const handleScheduleMeeting = async () => {
+
+        const course = document.querySelector('.select').value;
+        try {
+            const response = await fetch('http://localhost:4000/schedule-meeting', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    topic,
+                    start_time: new Date(startTime).toISOString(),
+                    duration
+                })
+            });
+    
+            const data = await response.json();
+            console.log('Meeting scheduled:', data);
+            alert(`Meeting scheduled! Join URL: ${data.join_url}`);
+    
+            // Add meeting details to Firestore
+            await addDoc(collection(firestore, 'classes'), {
+                topic,
+                time: new Date(startTime),
+                duration,
+                join_url: data.join_url,
+                start_url: data.start_url,
+                meeting_id: data.id,
+                created_at: new Date(),
+                course: course,
+            });
+    
+            console.log('Meeting details saved to Firestore');
+        } catch (error) {
+            console.error('Error scheduling meeting:', error);
+        }
+    };
+
+    const handleStartMeeting = async (upcomingClass) => {
+
+        const userName = userData.Name;
+        const { start_url, join_url } = upcomingClass;
+        try {
+            const startWindow = window.open(start_url, '_blank');
+
+            if (startWindow) {
+                return;
+            }
+        } catch (error) {
+            console.error('Failed to start meeting as host:', error);
+        }
+
+        const joinUrlWithName = `${join_url}?uname=${encodeURIComponent(userName)}`;
+        console.log(joinUrlWithName);
+        window.open(joinUrlWithName, '_blank');
+    };
+
 
     if (loading) {
         return <LoadingScreen />;
@@ -201,7 +265,7 @@ function Dashboard() {
                     <div className='dashboard-bottom-cards'>
                         <div className='dashboard-left-cards'>
                             <div className='dashboard-card-announcements'>
-                                <h3><span className="material-symbols-outlined">campaign</span> Announcements  <button className='add-btn' onClick={() => setIsModalOpen(true)}><span id='add-btn' className="material-symbols-outlined">add</span></button></h3>
+                                <h3><span className="material-symbols-outlined">campaign</span> Announcements  <button className='add-btn' onClick={() => setIsAnnouncementModalOpen(true)}><span id='add-btn' className="material-symbols-outlined">add</span></button></h3>
                                 {announcements.length > 0 ? (
                                     announcements.map((announcement) => (
                                         <div key={announcement.id} className='announcement'>
@@ -219,8 +283,9 @@ function Dashboard() {
 
                         <div className='dashboard-right-cards'>
                             <div className='dashboard-card-upcoming'>
-                                <h3><span className="material-symbols-outlined">calendar_month</span> Upcoming class<button className='add-btn'><span id='add-btn' className="material-symbols-outlined">add</span></button></h3>
+                                <h3><span className="material-symbols-outlined">calendar_month</span> Upcoming class<button className='add-btn' onClick={() => setIsAddClassModalOpen(true)}><span id='add-btn' className="material-symbols-outlined">add</span></button></h3>
                                 {upcomingClass ? (
+                                    upcomingClass.map((upcomingClass) => (
                                     <div className='upcoming-class'>
                                         <div>
                                             <span className="material-symbols-outlined">videocam</span>
@@ -228,8 +293,10 @@ function Dashboard() {
                                         <div>
                                             <p>{upcomingClass.course}</p>
                                             <p className='meeting-time'>{format(upcomingClass.time, 'dd MMMM   HH:mm')}</p>
+                                            <button onClick={() => {handleStartMeeting(upcomingClass)}}>Start</button>
                                         </div>
                                     </div>
+                                    ))
                                 ) : (
                                     <p>No upcoming classes.</p>
                                 )}
@@ -238,7 +305,7 @@ function Dashboard() {
                     </div>
 
                     {/* Modal for adding announcement */}
-                    <Modal show={isModalOpen} handleClose={() => setIsModalOpen(false)}>
+                    <Modal show={isAnnouncementModalOpen} handleClose={() => setIsAnnouncementModalOpen(false)}>
                         <div className='announcement-modal'>
                             <h2>Add Announcement</h2>
                             <form onSubmit={(e) => { e.preventDefault(); handleAddAnnouncement(); }}>
@@ -250,6 +317,52 @@ function Dashboard() {
                             </form>
                         </div>
                     </Modal>
+
+                    {/* Modal for adding classes */}
+                    <Modal show={isAddClassModalOpen} handleClose={() => setIsAddClassModalOpen(false)}>
+                        <div className='announcement-modal'>
+                            <h2>Schedule Zoom Meeting</h2>
+                            <form onSubmit={(e) => { e.preventDefault(); handleScheduleMeeting(); }}>
+                                <div>
+                                <label>Select Course:</label>
+                                <select required className='select'>
+                                    {userData.courses.map((course, index) => (
+                                        <option value={course} key={index}>
+                                            {course}
+                                        </option>
+                                    ))}
+                                </select> <br></br>
+                                    <label>Topic:</label>
+                                    <input
+                                        type='text'
+                                        value={topic}
+                                        onChange={(e) => setTopic(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label>Start Time:</label>
+                                    <input
+                                        type='datetime-local'
+                                        value={startTime}
+                                        onChange={(e) => setStartTime(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label>Duration (minutes):</label>
+                                    <input
+                                        type='number'
+                                        value={duration}
+                                        onChange={(e) => setDuration(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                                <button className='announcement-modal-button' type='submit'>Schedule Meeting</button>
+                            </form>
+                        </div>
+                    </Modal>
+
                 </>
             ) : (
                 <p>Loading user data...</p>

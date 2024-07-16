@@ -26,7 +26,6 @@ function Submissions() {
   const [clickedAssignment, setClickedAssignment] = useState(null);
   const [isActive, setIsActive] = useState(false);
 
-  // Fetch user data
     useEffect(() => {
     const fetchUserData = async () => {
       if (currentUser) {
@@ -318,6 +317,7 @@ return (
                         )}
                     </div>
                 </Modal>
+
 
             </>
         ) : (
