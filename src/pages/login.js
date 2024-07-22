@@ -77,7 +77,7 @@ function Login() {
                 <div className="signin">
                     <div className="content">
                         <h2 className='login-header'>Richmond Live Academy<br></br> Student Portal</h2>
-                        <h2 className='login-header-mobile'>RL Academy <br></br>Student Portal</h2>
+                        <h2 className='login-header-mobile'>RL Academy <br></br>Admin Portal</h2>
                     {showLogin && (
                         <form className="form" onSubmit={handleLogin}>
                             <div id='txt' className="inputBox">
