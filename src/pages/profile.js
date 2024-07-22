@@ -93,7 +93,7 @@ const Profile = () => {
                                 <h4>Email:</h4>
                                 <p className='data'>{currentUser.email}</p>
                                 <h4>Whatsapp no:</h4>
-                                <p className='data'>{userData.WhatsappNumber}</p>
+                                <p className='data'>{userData.Whatsapp}</p>
                                 <div className='passwrd-reset'>
                                     <button className='reset' onClick={handlePasswordReset} disabled={loading}>
                                         {loading ? 'Sending' : 'Send Password Reset Email'}
