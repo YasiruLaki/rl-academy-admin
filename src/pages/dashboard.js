@@ -53,7 +53,6 @@ function Dashboard() {
         fetchUserData();
     }, [currentUser]);
 
-    // Fetch upcoming classes
     useEffect(() => {
         const fetchUpcomingClasses = async () => {
             if (userData && userData.courses) {
@@ -65,35 +64,41 @@ function Dashboard() {
                     querySnapshot.forEach(doc => {
                         const data = doc.data();
                         data.id = doc.id;
+
+    
                         if (data.time && data.time.seconds) {
                             data.time = new Date(data.time.seconds * 1000 + data.time.nanoseconds / 1000000);
                         } else {
                             console.warn('Invalid time format:', data.time);
                         }
+    
+                        // Set end time to 1 hour after start time
+                        const durationMs = 1 * 60 * 60 * 1000; // 1 hour in milliseconds
+                        data.endTime = new Date(data.time.getTime() + durationMs);
+    
                         classes.push(data);
                     });
+    
+                    console.log('All classes:', classes);
+    
                     const now = new Date();
+    
                     const upcomingClasses = classes
-                        .filter(c => c.time > now)
-                        .sort((a, b) => a.time - b.time);
+                        .filter(c => c.endTime > now)  // Filter based on end time
+                        .sort((a, b) => a.time - b.time);  // Sort based on start time
+
+    
                     setUpcomingClass(upcomingClasses);
                 } catch (error) {
-                    console.error('Error fetching upcoming classes:', error);
                     setError('Failed to fetch upcoming classes. Please try again.');
                 }
-                finally {
-                    setLoading(false);
-                }
+                setLoading(false);
             }
-
         };
-
-
+    
         if (userData) {
             fetchUpcomingClasses();
-
         }
-
     }, [userData]);
 
     // Fetch announcements
