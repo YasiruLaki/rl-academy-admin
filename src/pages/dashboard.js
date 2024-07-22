@@ -205,7 +205,7 @@ const handleStartMeeting = async (upcomingClass) => {
     }
 
     const Name = userData.Name;
-    const userName = ''
+    const userName = 'RLA OC - ' + Name;
 
     const joinUrlWithName = `${join_url}?uname=${encodeURIComponent(userName)}`;
     console.log(joinUrlWithName);
