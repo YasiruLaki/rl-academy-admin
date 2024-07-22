@@ -20,7 +20,7 @@ function Login() {
         e.preventDefault();
         setError('');
         try {
-            const preSavedEmails = ['yasirulaki04@gmail.com', 'lckariyawasam@gmail.com', 'email3@example.com'];
+            const preSavedEmails = ['yasirulaki04@gmail.com', 'lckariyawasam@gmail.com', 'hello@suvin.me'];
             if (!preSavedEmails.includes(email)) {
                 throw new Error('Invalid email');
             }
