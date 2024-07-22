@@ -55,16 +55,39 @@
 
 }
 
-.submissions-box-header label span{
+.box-number{
+    font-size: 16px;
+    font-weight: 400;
+    font-style: italic;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.submissions-box-header label p{
     font-size: 18px;
     font-weight: 500;
-
+    font-style: normal;
 }
 
 .submissions-box input{
     display: none;
 }
 
+.submission-box-title{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: nowrap;
+}
+
+.box-title{
+    overflow: hidden;
+    display: -webkit-box;
+    line-clamp: 1;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+}
 
 .menu-content{
     max-height: 0;
@@ -91,6 +114,33 @@
     font-weight: 500;
 }
 
+
+.course-name{
+    color: white;
+    background-color: black;
+    border-radius: 7px;
+    display: inline;
+    padding: 5px;
+    font-weight: 400;
+    padding-left: 10px;
+    padding-right: 10px;
+    font-size: 15px;
+}
+
+.submission{
+    margin-top: 25px;
+}
+
+.course-text p{
+    font-size: 25px;
+    font-weight: 500;
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+.submission-div{
+    margin-top: 20px;
+}
 
 .text-editor{
     height: 300px;

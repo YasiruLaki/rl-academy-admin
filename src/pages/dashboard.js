@@ -6,6 +6,8 @@ import { doc, getDoc, collection, query, where, getDocs, addDoc } from 'firebase
 import { format } from 'date-fns';
 import Modal from '../components/modal';
 import LoadingScreen from '../components/loadingScreen';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 function Dashboard() {
     const { currentUser } = useAuth();
@@ -151,63 +153,76 @@ function Dashboard() {
     };
 
 
-    const handleScheduleMeeting = async () => {
-
-        const course = document.querySelector('.select').value;
-        try {
-            const response = await fetch('http://localhost:4000/schedule-meeting', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    topic,
-                    start_time: new Date(startTime).toISOString(),
-                    duration
-                })
-            });
-    
-            const data = await response.json();
-            console.log('Meeting scheduled:', data);
-            alert(`Meeting scheduled! Join URL: ${data.join_url}`);
-    
-            // Add meeting details to Firestore
-            await addDoc(collection(firestore, 'classes'), {
+const handleScheduleMeeting = async () => {
+    const course = document.querySelector('.select').value;
+    try {
+        const response = await fetch('https://rla-backend.netlify.app/schedule-meeting', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
                 topic,
-                time: new Date(startTime),
-                duration,
-                join_url: data.join_url,
-                start_url: data.start_url,
-                meeting_id: data.id,
-                created_at: new Date(),
-                course: course,
-            });
-    
-            console.log('Meeting details saved to Firestore');
-        } catch (error) {
-            console.error('Error scheduling meeting:', error);
+                description: `${course}`,
+                start_time: new Date(startTime).toISOString(),
+                duration
+            })
+        });
+
+        const data = await response.json();
+        console.log('Meeting scheduled:', data);
+        alert(`Meeting scheduled! Join URL: ${data.join_url}`);
+
+        // Add meeting details to Firestore
+        await addDoc(collection(firestore, 'classes'), {
+            topic,
+            time: new Date(startTime),
+            duration,
+            join_url: data.join_url,
+            start_url: data.start_url,
+            meeting_id: data.id,
+            created_at: new Date(),
+            course: course,
+        });
+
+        console.log('Meeting details saved to Firestore');
+    } catch (error) {
+        console.error('Error scheduling meeting:', error);
+    }
+};
+
+const handleStartMeeting = async (upcomingClass) => {
+    const { start_url, join_url } = upcomingClass;
+
+    try {
+
+        const startWindow = window.open(start_url, '_blank');
+        if (startWindow) {
+            return;
         }
-    };
+    } catch (error) {
+        console.error('Failed to start meeting as host:', error);
+    }
 
-    const handleStartMeeting = async (upcomingClass) => {
+    const Name = userData.Name;
+    const userName = ''
 
-        const userName = userData.Name;
-        const { start_url, join_url } = upcomingClass;
-        try {
-            const startWindow = window.open(start_url, '_blank');
+    const joinUrlWithName = `${join_url}?uname=${encodeURIComponent(userName)}`;
+    console.log(joinUrlWithName);
+    window.open(joinUrlWithName, '_blank');
+};
 
-            if (startWindow) {
-                return;
-            }
-        } catch (error) {
-            console.error('Failed to start meeting as host:', error);
-        }
 
-        const joinUrlWithName = `${join_url}?uname=${encodeURIComponent(userName)}`;
-        console.log(joinUrlWithName);
-        window.open(joinUrlWithName, '_blank');
-    };
-
+    const modules = {
+        toolbar: [
+          [{ 'header': '1'}, { 'header': '2'},{ 'header': '3'}, { 'font': [] }],
+          [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+          ['bold', 'italic', 'underline'],
+          [{ 'align': [] }],
+          [{ 'color': [] }],
+          ['clean'] // remove formatting button
+        ]
+      };
 
     if (loading) {
         return <LoadingScreen />;
@@ -226,9 +241,9 @@ function Dashboard() {
                             <h1>Welcome Back, ​Mentor</h1>
                             <h2>{userData.Name}</h2>
                         </div>
-                        <div>
+                        {/* <div>
                             <button>Logout<span className="material-symbols-outlined">logout</span></button>
-                        </div>
+                        </div> */}
                     </div>
 
                     <div className='dashboard-top-cards'>
@@ -281,28 +296,33 @@ function Dashboard() {
                             </div>
                         </div>
 
+
                         <div className='dashboard-right-cards'>
-                            <div className='dashboard-card-upcoming'>
-                                <h3><span className="material-symbols-outlined">calendar_month</span> Upcoming class<button className='add-btn' onClick={() => setIsAddClassModalOpen(true)}><span id='add-btn' className="material-symbols-outlined">add</span></button></h3>
-                                {upcomingClass ? (
-                                    upcomingClass.map((upcomingClass) => (
-                                    <div className='upcoming-class'>
-                                        <div>
-                                            <span className="material-symbols-outlined">videocam</span>
-                                        </div>
-                                        <div>
-                                            <p>{upcomingClass.course}</p>
-                                            <p className='meeting-time'>{format(upcomingClass.time, 'dd MMMM   HH:mm')}</p>
-                                            <button onClick={() => {handleStartMeeting(upcomingClass)}}>Start</button>
-                                        </div>
-                                    </div>
-                                    ))
-                                ) : (
-                                    <p>No upcoming classes.</p>
-                                )}
+                                <div className='dashboard-card-upcoming'>
+                                    <h3><span className="material-symbols-outlined">calendar_month</span> Upcoming class</h3>
+                                    {upcomingClass ? (
+                                        upcomingClass.map((upcomingClass) => (
+                                            <div className='upcoming-class'>
+                                                <div className='class-1'>
+                                                    <span className="material-symbols-outlined">videocam</span>
+                                                    <p id='class-course'>{upcomingClass.course}</p>
+                                                </div>
+                                                <div className='class-2'>
+                                                    <div>
+                                                        <p className='meeting-time'>{format(upcomingClass.time, 'dd MMMM  |  HH:mm')}</p>
+                                                    </div>
+                                                    <div>
+                                                    <button className='join-btn' onClick={() => {handleStartMeeting(upcomingClass)}}>Start</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p>No upcoming classes.</p>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
 
                     {/* Modal for adding announcement */}
                     <Modal show={isAnnouncementModalOpen} handleClose={() => setIsAnnouncementModalOpen(false)}>
@@ -311,8 +331,15 @@ function Dashboard() {
                             <form onSubmit={(e) => { e.preventDefault(); handleAddAnnouncement(); }}>
                                 <div>
                                     <label>Type your Announcement here:</label>
-                                    <textarea value={announcementText} onChange={(e) => setAnnouncementText(e.target.value)} required></textarea>
-                                </div>
+                                    <ReactQuill
+                                    value={announcementText}
+                                    onChange={setAnnouncementText}
+                                    theme="snow"
+                                    className='text-editor'
+                                    modules={modules}
+                                    required
+                                />
+Z                                </div>
                                 <button className='announcement-modal-button' type="submit">Add Announcement</button>
                             </form>
                         </div>

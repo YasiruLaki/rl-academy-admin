@@ -3,8 +3,8 @@ import './dashboard.css';
 import './submissions.css';
 import { useAuth } from '../hooks/useAuth';
 import { firestore } from '../firebase';
-import { doc, setDoc, getDoc, collection, query, getDocs } from 'firebase/firestore';
-import { format, parseISO } from 'date-fns';
+import { doc, setDoc, getDoc, collection, query, getDocs, arrayRemove } from 'firebase/firestore';
+import { format, parseISO, set } from 'date-fns';
 import Modal from '../components/modal';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -37,6 +37,7 @@ function Submissions() {
             const data = docSnap.data();
             if (typeof data.courses === 'string') {
               data.courses = data.courses.split(',').map(course => course.trim());
+              
             }
             setUserData(data);
           } else {
@@ -48,7 +49,6 @@ function Submissions() {
         }
       }
     };
-
     fetchUserData();
   }, [currentUser]);
 
@@ -165,6 +165,24 @@ function Submissions() {
     }
   };
 
+  const manageSubmissions = () => {
+    const courseCollectionMap = {
+      'Graphic Design': 'gd',
+      'Web Development': 'wd',
+      'Video Editing': 've',
+    };
+
+    const courseCollection = courseCollectionMap[userData.courses[0]];
+
+    if (!courseCollection) {
+      setError('Invalid course selected.');
+      return;
+    }
+
+    const link = 'https://bit.ly/' + courseCollection + '-submissions';
+    window.open(link, '_blank');
+  }
+
 
   const modules = {
     toolbar: [
@@ -189,8 +207,8 @@ return (
         {userData ? (
             <>
                 <div className='add-assignments'>
-                    <div>
-                        <h2>Submissions</h2>
+                    <div className='course-text'>
+                        <p>Assignments</p>
                     </div>
                     <div className='assignments-right'>
                         <div className='add-assignments-box'>
@@ -202,7 +220,7 @@ return (
                         </div>
                         <div className='add-assignments-box'>
                             <h3>
-                                <button>
+                                <button onClick={manageSubmissions}>
                                     Manage Submissions<span id='add-btn' className="material-symbols-outlined">open_in_new</span>
                                 </button>
                             </h3>
@@ -211,46 +229,60 @@ return (
                 </div>
 
                 <div className='submissions-box'>
-                    {userData.courses.map((course, index) => (
-                        <div key={index}>
-                            <h3>{course}</h3>
-                            {assignments.length > 0 ? (
-                                assignments
-                                    .filter(assignment => assignment.course === course)
-                                    .sort((a, b) => b.submissionNumber - a.submissionNumber)
-                                    .map((assignment) => {
-                                        const now = new Date();
-                                        const deadline = new Date(assignment.deadline);
-                                        const isActive = now <= deadline || (now.getDate() === deadline.getDate() && now.getHours() <= 23 && now.getMinutes() <= 59);
-                                        return (
-                                            <div key={assignment.submissionNumber}>
-                                                <label htmlFor={`toggle-${assignment.submissionNumber}`}>
-                                                    <div className='submissions-box-header' onClick={() => { setIsAssignmentModalOpen(true); handleClickedAssignment(assignment); }}>
-                                                        <div>
-                                                            <label htmlFor={`toggle-${assignment.submissionNumber}`}>Assignment {assignment.submissionNumber}:<span> {assignment.title}</span></label>
-                                                        </div>
-                                                        <div className='status'>
-                                                            <p>Status: <span className={isActive ? 'Active' : 'Expired'}>{isActive ? 'Active' : 'Closed'}</span></p>
-                                                        </div>
-                                                    </div>
-                                                </label>
-                                                <input type='checkbox' id={`toggle-${assignment.submissionNumber}`} />
-                                                <div className="menu-content" style={{ zIndex: -100 }}>
-                                                    <p dangerouslySetInnerHTML={{ __html: assignment.description }} />
-                                                    {assignment.deadline && (
-                                                        <span>{format(assignment.deadline, 'yyyy-MM-dd')}</span>
-                                                    )}<br></br>
-                                                    <button>View Submissions</button>
-                                                </div>
+                        {userData.courses.map((course, index) => {
+    const courseAssignments = assignments.filter(assignment => assignment.course === course);
+    
+    // If there are assignments for this course, render the course name and its assignments
+    if (courseAssignments.length > 0) {
+        return (
+            <div key={index} className='submission'>
+                <h3 className='course-name'>&gt; {course}</h3>
+                <div className='submission-div'>
+                    {courseAssignments
+                        .sort((a, b) => b.submissionNumber - a.submissionNumber)
+                        .map((assignment) => {
+                            const now = new Date();
+                            const deadline = new Date(assignment.deadline);
+                            const isActive = now <= deadline || (now.getDate() === deadline.getDate() && now.getHours() <= 23 && now.getMinutes() <= 59);
+                            return (
+                                <div key={assignment.submissionNumber}>
+                                    <label htmlFor={`toggle-${assignment.submissionNumber}`}>
+                                        <div className='submissions-box-header' onClick={() => { setIsAssignmentModalOpen(true); handleClickedAssignment(assignment); }}>
+                                            <div className='submission-box-title'>
+                                                <div><p className='box-number'>Assignment {assignment.submissionNumber} :&nbsp;&nbsp;</p></div> <div><p className='box-title'> {assignment.title}</p></div>
                                             </div>
-                                        );
-                                    })
-                            ) : (
-                                <p>No assignments available.</p>
-                            )}
-                        </div>
-                    ))}
+                                            <div className='status'>
+                                                <p><span className={isActive ? 'Active' : 'Expired'}>{isActive ? 'Active' : 'Closed'}</span></p>
+                                            </div>
+                                        </div>
+                                    </label>
+                                    <input type='checkbox' id={`toggle-${assignment.submissionNumber}`} />
+                                    <div className="menu-content" style={{ zIndex: -100 }}>
+                                        <p dangerouslySetInnerHTML={{ __html: assignment.description }} />
+                                        {assignment.deadline && (
+                                            <span>{format(assignment.deadline, 'yyyy-MM-dd')}</span>
+                                        )}<br></br>
+                                        <button>View Submissions</button>
+                                    </div>
+                                </div>
+                            );
+                        })}
                 </div>
+            </div>
+        );
+    } else {    
+        return (
+            <div key={index} className='submission'>
+                <h3 className='course-name'>&gt; {course}</h3>
+                <div className='submission-div'>
+                    <p>No assignments found for this course.</p>
+                </div>
+            </div>
+        );
+    }
+})}
+
+                        </div>
 
                 <div className='dashboard-bottom-cards'>
                     <div className='dashboard-left-cards'>
