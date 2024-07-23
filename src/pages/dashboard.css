@@ -166,6 +166,8 @@
 
 .progress p{
     width: 50%;
+    line-height: 15px;
+    margin-top: 6px;
 }
 
 #progress-count{

@@ -8,7 +8,7 @@ import Modal from '../components/modal';
 import LoadingScreen from '../components/loadingScreen';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
-
+import axios from 'axios';
 function Dashboard() {
     const { currentUser } = useAuth();
     const [userData, setUserData] = useState(null);
@@ -196,25 +196,66 @@ const handleScheduleMeeting = async () => {
     }
 };
 
-const handleStartMeeting = async (upcomingClass) => {
-    const { start_url, join_url } = upcomingClass;
+const checkMeetingStatus = async (meetingId) => {
+    try {
+        const response = await axios.get(`https://rla-backend.netlify.app/meeting/${meetingId}`);
+        return response.data.status; // returns the meeting status
+    } catch (error) {
+        console.error('Error checking meeting status:', error.response ? error.response.data : error.message);
+        return null;
+    }
+};
+
+const fetchParticipantDetails = async (meetingId) => {
+    try {
+        const response = await axios.get(`https://rla-backend.netlify.app/meeting/${meetingId}/participants`);
+        return response.data.participants;
+    } catch (error) {
+        console.error('Error fetching participant details:', error.response ? error.response.data : error.message);
+        return null;
+    }
+};
+
+const handleStartMeeting = async (upcomingClass, userData) => {
+    const { meeting_id, start_url, join_url } = upcomingClass;
 
     try {
+        const status = await checkMeetingStatus(meeting_id);
 
-        const startWindow = window.open(start_url, '_blank');
-        if (startWindow) {
-            return;
+        if (status === 'waiting' || status === 'not started') {
+            // Meeting is not started yet, so start the meeting
+            const startWindow = window.open(start_url, '_blank');
+            if (startWindow) {
+                return;
+            }
+        } else if (status === 'started') {
+            // Meeting is already started, so join the meeting
+            const Name = userData.Name;
+            const userName = 'RLA OC - ' + Name;
+            const joinUrlWithName = `${join_url}?uname=${encodeURIComponent(userName)}`;
+            console.log(joinUrlWithName);
+            window.open(joinUrlWithName, '_blank');
+        } else {
+            console.error('Meeting status unknown or not available');
         }
+
+        // Periodically check the meeting status
+        const interval = setInterval(async () => {
+            const currentStatus = await checkMeetingStatus(meeting_id);
+
+            if (currentStatus === 'ended') {
+                clearInterval(interval);
+
+                // Fetch participant details after the meeting ends
+                const participants = await fetchParticipantDetails(meeting_id);
+                console.log('Participants:', participants);
+                // You can further process or display the participant details here
+            }
+        }, 6000); // Check every 60 seconds
+
     } catch (error) {
-        console.error('Failed to start meeting as host:', error);
+        console.error('Failed to start or join meeting:', error);
     }
-
-    const Name = userData.Name;
-    const userName = 'RLA OC - ' + Name;
-
-    const joinUrlWithName = `${join_url}?uname=${encodeURIComponent(userName)}`;
-    console.log(joinUrlWithName);
-    window.open(joinUrlWithName, '_blank');
 };
 
 
@@ -344,7 +385,7 @@ const handleStartMeeting = async (upcomingClass) => {
                                     modules={modules}
                                     required
                                 />
-Z                                </div>
+                            </div>
                                 <button className='announcement-modal-button' type="submit">Add Announcement</button>
                             </form>
                         </div>
