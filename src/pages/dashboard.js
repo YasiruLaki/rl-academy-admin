@@ -304,7 +304,7 @@ const handleStartMeeting = async (upcomingClass) => {
 
                         <div className='dashboard-right-cards'>
                                 <div className='dashboard-card-upcoming'>
-                                    <h3><span className="material-symbols-outlined">calendar_month</span> Upcoming class</h3>
+                                    <h3><span className="material-symbols-outlined">calendar_month</span> Upcoming class<button className='add-btn' onClick={() => setIsAddClassModalOpen(true)}><span id='add-btn' className="material-symbols-outlined">add</span></button></h3>
                                     {upcomingClass ? (
                                         upcomingClass.map((upcomingClass) => (
                                             <div className='upcoming-class'>
