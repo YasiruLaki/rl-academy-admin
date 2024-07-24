@@ -217,7 +217,7 @@ const fetchParticipantDetails = async (meetingId) => {
     }
 };
 
-const handleStartMeeting = async (upcomingClass, userData) => {
+const handleStartMeeting = async (upcomingClass) => {
     const { meeting_id, start_url, join_url } = upcomingClass;
 
     try {
