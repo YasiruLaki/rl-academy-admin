@@ -8,6 +8,7 @@ import Login from './pages/login';
 import Profile from './pages/profile';
 import Sidebar from './components/sidebar';
 import Community from './pages/community';
+import Attendance from './pages/attendance';
 import { useAuth } from './hooks/useAuth';
 import './App.css';
 
@@ -27,6 +28,7 @@ const App = () => {
             <Route path="/assignments" element={currentUser ? <Submissions /> : <Navigate to="/" />} />
             <Route path="/community" element={currentUser ? <Community /> : <Navigate to="/" />} />
             <Route path="/profile" element={currentUser ? <Profile /> : <Navigate to="/" />} />
+            <Route path="/attendance" element={currentUser ? <Attendance /> : <Navigate to="/" />} />
           </Routes>
         </div>
       </div>
