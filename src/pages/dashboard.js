@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './dashboard.css';
 import { useAuth } from '../hooks/useAuth';
 import { firestore } from '../firebase';
-import { doc, getDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, addDoc, orderBy } from 'firebase/firestore';
 import { format } from 'date-fns';
 import Modal from '../components/modal';
 import LoadingScreen from '../components/loadingScreen';
@@ -24,7 +24,7 @@ function Dashboard() {
     const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
     const [topic, setTopic] = useState('');
     const [startTime, setStartTime] = useState('');
-    const [duration, setDuration] = useState(30);
+    const [duration, setDuration] = useState(120);
 
     // Fetch user data
     useEffect(() => {
@@ -105,16 +105,17 @@ function Dashboard() {
     const fetchAnnouncements = async () => {
         try {
             const announcementsRef = collection(firestore, 'announcements');
-            const querySnapshot = await getDocs(announcementsRef);
+            const announcementsQuery = query(announcementsRef, orderBy('date', 'desc'));
+            const querySnapshot = await getDocs(announcementsQuery);
             const fetchedAnnouncements = [];
             querySnapshot.forEach(doc => {
                 const data = doc.data();
                 data.id = doc.id;
                 if (data.date && data.date.toDate) {
-                    data.date = data.date.toDate(); // Convert Firestore Timestamp to JavaScript Date
+                    data.date = data.date.toDate();
                 } else {
                     console.warn('Date format is not a Firestore Timestamp or is missing:', data.date);
-                    data.date = new Date(); // Fallback to current date if date is missing
+                    data.date = new Date();
                 }
                 fetchedAnnouncements.push(data);
             });
@@ -294,7 +295,7 @@ const handleStartMeeting = async (upcomingClass, userData) => {
 
                     <div className='dashboard-top-cards'>
                         <div className='dashboard-card-courses'>
-                            <h3><span className="material-symbols-outlined">school</span> Courses enrolled <span className='count'>({coursesCount}/3)</span></h3>
+                            <h3><span className="material-symbols-outlined">school</span> Courses assigned <span className='count'>({coursesCount}/3)</span></h3>
                             <ul>
                                 {userData.courses.map((course, index) => (
                                     <li key={index}>
@@ -304,7 +305,25 @@ const handleStartMeeting = async (upcomingClass, userData) => {
                             </ul>
                         </div>
                         <div className='dashboard-card-courses'>
-                            <h3><span className="material-symbols-outlined">assignment_turned_in</span> Submissions <span className='count'>({submissionsCount}/{coursesCount * 3})</span></h3>
+                            <h3><span className="material-symbols-outlined">assignment_turned_in</span> Submissions <span className='count'>({submissionsCount})</span></h3>
+                            <ul id='courses-progress'>
+                                {userData.courses.map((course, index) => (
+                                    <li key={index}>
+                                        <div className='progress'>
+                                            <p>{course}</p>
+                                            <div className='progress-bar'>
+                                                <div className='progress-bar-fill' style={{ width: `${(userData.submissions?.[course] || 0) / 3 * 100}%` }}></div>
+                                            </div>
+                                            <div>
+                                                <div><p id='progress-count'>{`${((userData.submissions?.[course] || 0) / 3 * 100).toFixed(0)}%`}</p></div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                        <div className='dashboard-card-courses'>
+                            <h3><span className="material-symbols-outlined">check</span> Attendance <span className='count'></span></h3>
                             <ul id='courses-progress'>
                                 {userData.courses.map((course, index) => (
                                     <li key={index}>
@@ -396,7 +415,7 @@ const handleStartMeeting = async (upcomingClass, userData) => {
                         <div className='announcement-modal'>
                             <h2>Schedule Zoom Meeting</h2>
                             <form onSubmit={(e) => { e.preventDefault(); handleScheduleMeeting(); }}>
-                                <div>
+                                <div className='addClass-div'>
                                 <label>Select Course:</label>
                                 <select required className='select'>
                                     {userData.courses.map((course, index) => (
@@ -413,7 +432,7 @@ const handleStartMeeting = async (upcomingClass, userData) => {
                                         required
                                     />
                                 </div>
-                                <div>
+                                <div className='addClass-div'>
                                     <label>Start Time:</label>
                                     <input
                                         type='datetime-local'
@@ -422,7 +441,7 @@ const handleStartMeeting = async (upcomingClass, userData) => {
                                         required
                                     />
                                 </div>
-                                <div>
+                                <div className='addClass-div'>
                                     <label>Duration (minutes):</label>
                                     <input
                                         type='number'

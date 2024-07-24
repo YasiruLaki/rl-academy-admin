@@ -218,6 +218,11 @@
     filter: drop-shadow(4px 0px 20px rgba(108, 108, 108, 0.186));
 }
 
+.dashboard-card-announcements p{
+    font-size: 15px;
+    font-weight: 500;
+}
+
 .dashboard-card-announcements h3{
     font-weight: 600;
     text-align: left;
@@ -228,6 +233,11 @@
     font-weight: 400;
     font-size: 12px;
     margin-bottom: -10px;
+    color: white;
+    background-color: black;
+    display: inline;
+    padding: 5px;
+    border-radius: 7px;
 }
 
 .announcement{
@@ -368,6 +378,12 @@
     width: auto;
     font-size: 15px;
     margin-left: 10px;
+}
+
+
+.addClass-div input{
+    margin-bottom: 15px;
+    margin-left: 5px;
 }
 
 
