@@ -3,12 +3,13 @@ import './dashboard.css';
 import { useAuth } from '../hooks/useAuth';
 import { firestore } from '../firebase';
 import { doc, getDoc, collection, query, where, getDocs, addDoc, orderBy } from 'firebase/firestore';
-import { format } from 'date-fns';
+import { format, set } from 'date-fns';
 import Modal from '../components/modal';
 import LoadingScreen from '../components/loadingScreen';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import axios from 'axios';
+import { se } from 'date-fns/locale';
 function Dashboard() {
     const { currentUser } = useAuth();
     const [userData, setUserData] = useState(null);
@@ -221,12 +222,14 @@ const handleStartMeeting = async (upcomingClass) => {
     const { meeting_id, start_url, join_url } = upcomingClass;
 
     try {
+        setLoading(true);
         const status = await checkMeetingStatus(meeting_id);
 
         if (status === 'waiting' || status === 'not started') {
             // Meeting is not started yet, so start the meeting
             const startWindow = window.open(start_url, '_blank');
             if (startWindow) {
+                setLoading(false);
                 return;
             }
         } else if (status === 'started') {
@@ -236,6 +239,7 @@ const handleStartMeeting = async (upcomingClass) => {
             const joinUrlWithName = `${join_url}?uname=${encodeURIComponent(userName)}`;
             console.log(joinUrlWithName);
             window.open(joinUrlWithName, '_blank');
+            setLoading(false);
         } else {
             console.error('Meeting status unknown or not available');
         }
