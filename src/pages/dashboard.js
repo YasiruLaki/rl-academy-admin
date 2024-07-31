@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import './dashboard.css';
 import { useAuth } from '../hooks/useAuth';
 import { firestore } from '../firebase';
+import { storage, auth } from '../firebase';
 import { doc, getDoc, collection, query, where, getDocs, addDoc, orderBy } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { format, set } from 'date-fns';
 import Modal from '../components/modal';
 import LoadingScreen from '../components/loadingScreen';
@@ -10,6 +12,8 @@ import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import axios from 'axios';
 import { se } from 'date-fns/locale';
+
+
 function Dashboard() {
     const { currentUser } = useAuth();
     const [userData, setUserData] = useState(null);
@@ -23,9 +27,14 @@ function Dashboard() {
     const [upcomingClasses, setUpcomingClasses] = useState([]);
     const [isAddClassModalOpen, setIsAddClassModalOpen] = useState(false);
     const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
+    const [isMaterialsModalOpen, setIsMaterialsModalOpen] = useState(false);
     const [topic, setTopic] = useState('');
     const [startTime, setStartTime] = useState('');
     const [duration, setDuration] = useState(120);
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [materials, setMaterials] = useState([]);
+    const [materialTopic, setMaterialTopic] = useState('');
+    const [courseAttendance, setCourseAttendance] = useState([]);
 
     // Fetch user data
     useEffect(() => {
@@ -40,7 +49,7 @@ function Dashboard() {
                             data.courses = data.courses.split(',').map(course => course.trim());
                         }
                         setUserData(data);
-                        setCoursesCount(data.courses.length); // Update courses count
+                        setCoursesCount(data.courses.length);
                     } else {
                         setError('User data not found.');
                     }
@@ -54,6 +63,60 @@ function Dashboard() {
         fetchUserData();
     }, [currentUser]);
 
+    
+    useEffect(() => {
+        const getStudents = async () => {
+            try {
+                const collectionRef = collection(firestore, 'users');
+                const querySnapshot = await getDocs(collectionRef);
+                const students = querySnapshot.docs.map(doc => doc.data());
+    
+                // Get the logged-in user's enrolled courses
+                const enrolledCourses = userData.courses || [];
+    
+                // Initialize an object to store the count of students by course
+                const courseCounts = {
+                    'Graphic Design': 0,
+                    'Video Editing': 0,
+                    'Web Development': 0
+                };
+    
+                students.forEach(student => {
+                    const coursesString = student.courses;
+    
+                    // Check if coursesString is a string
+                    if (typeof coursesString === 'string') {
+                        // Split the string into an array
+                        const studentCourses = coursesString.split(',').map(course => course.trim());
+    
+                        // Increment the count for each course the student is enrolled in
+                        studentCourses.forEach(course => {
+                            if (enrolledCourses.includes(course)) {
+                                if (courseCounts[course] !== undefined) {
+                                    courseCounts[course]++;
+                                }
+                            }
+                        });
+                    } else {
+                        console.warn(`Unexpected data type for courses: ${typeof coursesString}`);
+                    }
+                });
+    
+                enrolledCourses.forEach(course => {
+                    if (courseCounts[course] !== undefined) {
+                        console.log(`${course} Students Count:`, courseCounts[course]);
+                    }
+                });
+            } catch (error) {
+                console.error('Error fetching students:', error);
+            }
+        };
+    
+        if (userData) {
+            getStudents();
+        }
+    }, [userData]);
+
     useEffect(() => {
         const fetchUpcomingClasses = async () => {
             if (userData && userData.courses) {
@@ -66,29 +129,29 @@ function Dashboard() {
                         const data = doc.data();
                         data.id = doc.id;
 
-    
+
                         if (data.time && data.time.seconds) {
                             data.time = new Date(data.time.seconds * 1000 + data.time.nanoseconds / 1000000);
                         } else {
                             console.warn('Invalid time format:', data.time);
                         }
-    
+
                         // Set end time to 1 hour after start time
                         const durationMs = 1 * 60 * 60 * 1000; // 1 hour in milliseconds
                         data.endTime = new Date(data.time.getTime() + durationMs);
-    
+
                         classes.push(data);
                     });
-    
+
                     console.log('All classes:', classes);
-    
+
                     const now = new Date();
-    
+
                     const upcomingClasses = classes
                         .filter(c => c.endTime > now)  // Filter based on end time
                         .sort((a, b) => a.time - b.time);  // Sort based on start time
 
-    
+
                     setUpcomingClass(upcomingClasses);
                 } catch (error) {
                     setError('Failed to fetch upcoming classes. Please try again.');
@@ -96,7 +159,7 @@ function Dashboard() {
                 setLoading(false);
             }
         };
-    
+
         if (userData) {
             fetchUpcomingClasses();
         }
@@ -159,121 +222,175 @@ function Dashboard() {
         }
     };
 
+    useEffect(() => {
+        const fetchMaterials = async () => {
+            if (userData && userData.courses && userData.courses.length > 0) {
+                try {
+                    const classesRef = collection(firestore, 'materials');
+                    const q = query(classesRef, where('course', 'in', userData.courses));
+                    const querySnapshot = await getDocs(q);
+                    const files = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setMaterials(files);
+                } catch (error) {
+                    console.error('Error fetching materials:', error);
+                }
+            }
+        };
 
-const handleScheduleMeeting = async () => {
-    const course = document.querySelector('.select').value;
-    try {
-        const response = await fetch('https://rla-backend.netlify.app/schedule-meeting', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
+        fetchMaterials();
+    }, [userData]);
+
+
+    const handleScheduleMeeting = async () => {
+        const course = document.querySelector('.select').value;
+        try {
+            const response = await fetch('https://rla-backend.netlify.app/schedule-meeting', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    topic,
+                    description: `${course}`,
+                    start_time: new Date(startTime).toISOString(),
+                    duration
+                })
+            });
+
+            const data = await response.json();
+            console.log('Meeting scheduled:', data);
+            alert(`Meeting scheduled! Join URL: ${data.join_url}`);
+
+            // Add meeting details to Firestore
+            await addDoc(collection(firestore, 'classes'), {
                 topic,
-                description: `${course}`,
-                start_time: new Date(startTime).toISOString(),
-                duration
-            })
-        });
+                time: new Date(startTime),
+                duration,
+                join_url: data.join_url,
+                start_url: data.start_url,
+                meeting_id: data.id,
+                created_at: new Date(),
+                course: course,
+            });
 
-        const data = await response.json();
-        console.log('Meeting scheduled:', data);
-        alert(`Meeting scheduled! Join URL: ${data.join_url}`);
-
-        // Add meeting details to Firestore
-        await addDoc(collection(firestore, 'classes'), {
-            topic,
-            time: new Date(startTime),
-            duration,
-            join_url: data.join_url,
-            start_url: data.start_url,
-            meeting_id: data.id,
-            created_at: new Date(),
-            course: course,
-        });
-
-        console.log('Meeting details saved to Firestore');
-    } catch (error) {
-        console.error('Error scheduling meeting:', error);
-    }
-};
-
-const checkMeetingStatus = async (meetingId) => {
-    try {
-        const response = await axios.get(`https://rla-backend.netlify.app/meeting/${meetingId}`);
-        return response.data.status; // returns the meeting status
-    } catch (error) {
-        console.error('Error checking meeting status:', error.response ? error.response.data : error.message);
-        return null;
-    }
-};
-
-const fetchParticipantDetails = async (meetingId) => {
-    try {
-        const response = await axios.get(`https://rla-backend.netlify.app/meeting/${meetingId}/participants`);
-        return response.data.participants;
-    } catch (error) {
-        console.error('Error fetching participant details:', error.response ? error.response.data : error.message);
-        return null;
-    }
-};
-
-const handleStartMeeting = async (upcomingClass) => {
-    const { meeting_id, start_url, join_url } = upcomingClass;
-
-    try {
-        setLoading(true);
-        const status = await checkMeetingStatus(meeting_id);
-
-        if (status === 'waiting' || status === 'not started') {
-            // Meeting is not started yet, so start the meeting
-            const startWindow = window.open(start_url, '_blank');
-            if (startWindow) {
-                setLoading(false);
-                return;
-            }
-        } else if (status === 'started') {
-            // Meeting is already started, so join the meeting
-            const Name = userData.Name;
-            const userName = 'RLA OC - ' + Name;
-            const joinUrlWithName = `${join_url}?uname=${encodeURIComponent(userName)}`;
-            console.log(joinUrlWithName);
-            window.open(joinUrlWithName, '_blank');
-            setLoading(false);
-        } else {
-            console.error('Meeting status unknown or not available');
+            console.log('Meeting details saved to Firestore');
+        } catch (error) {
+            console.error('Error scheduling meeting:', error);
         }
+    };
 
-        // Periodically check the meeting status
-        const interval = setInterval(async () => {
-            const currentStatus = await checkMeetingStatus(meeting_id);
+    const checkMeetingStatus = async (meetingId) => {
+        try {
+            const response = await axios.get(`https://rla-backend.netlify.app/meeting/${meetingId}`);
+            return response.data.status; // returns the meeting status
+        } catch (error) {
+            console.error('Error checking meeting status:', error.response ? error.response.data : error.message);
+            return null;
+        }
+    };
 
-            if (currentStatus === 'ended') {
-                clearInterval(interval);
+    const fetchParticipantDetails = async (meetingId) => {
+        try {
+            const response = await axios.get(`https://rla-backend.netlify.app/meeting/${meetingId}/participants`);
+            return response.data.participants;
+        } catch (error) {
+            console.error('Error fetching participant details:', error.response ? error.response.data : error.message);
+            return null;
+        }
+    };
 
-                // Fetch participant details after the meeting ends
-                const participants = await fetchParticipantDetails(meeting_id);
-                console.log('Participants:', participants);
-                // You can further process or display the participant details here
+    const handleStartMeeting = async (upcomingClass) => {
+        const { meeting_id, start_url, join_url } = upcomingClass;
+
+        try {
+            setLoading(true);
+            const status = await checkMeetingStatus(meeting_id);
+
+            if (status === 'waiting' || status === 'not started') {
+                // Meeting is not started yet, so start the meeting
+                const startWindow = window.open(start_url, '_blank');
+                if (startWindow) {
+                    setLoading(false);
+                    return;
+                }
+            } else if (status === 'started') {
+                // Meeting is already started, so join the meeting
+                const Name = userData.Name;
+                const userName = 'RLA OC - ' + Name;
+                const joinUrlWithName = `${join_url}?uname=${encodeURIComponent(userName)}`;
+                console.log(joinUrlWithName);
+                window.open(joinUrlWithName, '_blank');
+                setLoading(false);
+            } else {
+                console.error('Meeting status unknown or not available');
             }
-        }, 6000); // Check every 60 seconds
 
-    } catch (error) {
-        console.error('Failed to start or join meeting:', error);
-    }
-};
+            // Periodically check the meeting status
+            const interval = setInterval(async () => {
+                const currentStatus = await checkMeetingStatus(meeting_id);
+
+                if (currentStatus === 'ended') {
+                    clearInterval(interval);
+
+                    // Fetch participant details after the meeting ends
+                    const participants = await fetchParticipantDetails(meeting_id);
+                    console.log('Participants:', participants);
+                    // You can further process or display the participant details here
+                }
+            }, 6000); // Check every 60 seconds
+
+        } catch (error) {
+            console.error('Failed to start or join meeting:', error);
+        }
+    };
+
+
+    const handleFileChange = (e) => {
+        setSelectedFile(e.target.files[0]);
+    };
+
+
+    const handleAddMaterials = async () => {
+
+        const course = document.querySelector('.select').value;
+        if (!selectedFile) return;
+
+        try {
+            const fileRef = ref(storage, `materials/${selectedFile.name}`);
+            const snapshot = await uploadBytes(fileRef, selectedFile);
+            const downloadURL = await getDownloadURL(snapshot.ref);
+
+            // Save file metadata to Firestore
+            await addDoc(collection(firestore, "materials"), {
+                name: selectedFile.name,
+                url: downloadURL,
+                size: selectedFile.size,
+                uploadedBy: auth.currentUser.uid,
+                date: new Date(),
+                course: course,
+                topic: materialTopic,
+
+            });
+
+            // Reset file input
+            setSelectedFile(null);
+            setIsMaterialsModalOpen(false);
+        } catch (error) {
+            console.error("Error uploading file: ", error);
+        }
+    };
 
 
     const modules = {
         toolbar: [
-          [{ 'header': '1'}, { 'header': '2'},{ 'header': '3'}, { 'font': [] }],
-          [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-          ['bold', 'italic', 'underline'],
-          [{ 'align': [] }],
-          [{ 'color': [] }],
-          ['clean'] // remove formatting button
+            [{ 'header': '1' }, { 'header': '2' }, { 'header': '3' }, { 'font': [] }],
+            [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+            ['bold', 'italic', 'underline'],
+            [{ 'align': [] }],
+            [{ 'color': [] }],
+            ['clean'] // remove formatting button
         ]
-      };
+    };
 
     if (loading) {
         return <LoadingScreen />;
@@ -367,31 +484,66 @@ const handleStartMeeting = async (upcomingClass) => {
 
 
                         <div className='dashboard-right-cards'>
-                                <div className='dashboard-card-upcoming'>
-                                    <h3><span className="material-symbols-outlined">calendar_month</span> Upcoming class<button className='add-btn' onClick={() => setIsAddClassModalOpen(true)}><span id='add-btn' className="material-symbols-outlined">add</span></button></h3>
-                                    {upcomingClass ? (
-                                        upcomingClass.map((upcomingClass) => (
-                                            <div className='upcoming-class'>
-                                                <div className='class-1'>
-                                                    <span className="material-symbols-outlined">videocam</span>
-                                                    <p id='class-course'>{upcomingClass.course}</p>
+                            <div className='dashboard-card-upcoming'>
+                                <h3><span className="material-symbols-outlined">calendar_month</span> Upcoming class<button className='add-btn' onClick={() => setIsAddClassModalOpen(true)}><span id='add-btn' className="material-symbols-outlined">add</span></button></h3>
+                                {upcomingClass ? (
+                                    upcomingClass.map((upcomingClass) => (
+                                        <div className='upcoming-class'>
+                                            <div className='class-1'>
+                                                <span className="material-symbols-outlined">videocam</span>
+                                                <p id='class-course'>{upcomingClass.course}</p>
+                                            </div>
+                                            <div className='class-2'>
+                                                <div>
+                                                    <p className='meeting-time'>{format(upcomingClass.time, 'dd MMMM  |  HH:mm')}</p>
                                                 </div>
-                                                <div className='class-2'>
-                                                    <div>
-                                                        <p className='meeting-time'>{format(upcomingClass.time, 'dd MMMM  |  HH:mm')}</p>
-                                                    </div>
-                                                    <div>
-                                                    <button className='join-btn' onClick={() => {handleStartMeeting(upcomingClass)}}>Start</button>
-                                                    </div>
+                                                <div>
+                                                    <button className='join-btn' onClick={() => { handleStartMeeting(upcomingClass) }}>Start</button>
                                                 </div>
                                             </div>
-                                        ))
-                                    ) : (
-                                        <p>No upcoming classes.</p>
-                                    )}
-                                </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p>No upcoming classes.</p>
+                                )}
                             </div>
                         </div>
+                    </div>
+
+                    <div className='dashboard-left-cards'>
+                        <div className='dashboard-card-announcements'>
+                            <h3><span className="material-symbols-outlined">Attachment</span>Class Materials<button className='add-btn' onClick={() => setIsMaterialsModalOpen(true)}><span id='add-btn' className="material-symbols-outlined">add</span></button></h3>
+                            {materials.length === 0 ? (
+                                <div className='no-materials'>
+                                    <p>No class materials available.</p>
+                                </div>
+                            ) : (
+                                materials
+                                    .filter(material => material.url && material.topic && material.size !== undefined)
+                                    .map((material) => (
+                                        <div key={material.id}>
+                                            <a className='materials-a' href={material.url} target='_blank' rel='noopener noreferrer'>
+                                                <div className='materials'>
+                                                    <div className='upcoming-class'>
+                                                        <div className='materials-1'>
+                                                            <div className='materials-div'>
+                                                                <span className="material-symbols-outlined">book</span>
+                                                                <p className='materials-name'>{material.topic}</p>
+                                                            </div>
+                                                            <div className='size-div'>
+                                                                <span className='size'>({(material.size / (1024 * 1024)).toFixed(2)} MB)</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </a>
+                                        </div>
+                                    ))
+                            )}
+
+
+                        </div>
+                    </div>
 
                     {/* Modal for adding announcement */}
                     <Modal show={isAnnouncementModalOpen} handleClose={() => setIsAnnouncementModalOpen(false)}>
@@ -401,14 +553,14 @@ const handleStartMeeting = async (upcomingClass) => {
                                 <div>
                                     <label>Type your Announcement here:</label>
                                     <ReactQuill
-                                    value={announcementText}
-                                    onChange={setAnnouncementText}
-                                    theme="snow"
-                                    className='text-editor'
-                                    modules={modules}
-                                    required
-                                />
-                            </div>
+                                        value={announcementText}
+                                        onChange={setAnnouncementText}
+                                        theme="snow"
+                                        className='text-editor'
+                                        modules={modules}
+                                        required
+                                    />
+                                </div>
                                 <button className='announcement-modal-button' type="submit">Add Announcement</button>
                             </form>
                         </div>
@@ -420,14 +572,14 @@ const handleStartMeeting = async (upcomingClass) => {
                             <h2>Schedule Zoom Meeting</h2>
                             <form onSubmit={(e) => { e.preventDefault(); handleScheduleMeeting(); }}>
                                 <div className='addClass-div'>
-                                <label>Select Course:</label>
-                                <select required className='select'>
-                                    {userData.courses.map((course, index) => (
-                                        <option value={course} key={index}>
-                                            {course}
-                                        </option>
-                                    ))}
-                                </select> <br></br>
+                                    <label>Select Course:</label>
+                                    <select required className='select'>
+                                        {userData.courses.map((course, index) => (
+                                            <option value={course} key={index}>
+                                                {course}
+                                            </option>
+                                        ))}
+                                    </select> <br></br>
                                     <label>Topic:</label>
                                     <input
                                         type='text'
@@ -455,6 +607,40 @@ const handleStartMeeting = async (upcomingClass) => {
                                     />
                                 </div>
                                 <button className='announcement-modal-button' type='submit'>Schedule Meeting</button>
+                            </form>
+                        </div>
+                    </Modal>
+
+
+                    {/* Modal for adding materials */}
+                    <Modal show={isMaterialsModalOpen} handleClose={() => setIsMaterialsModalOpen(false)}>
+                        <div className='announcement-modal'>
+                            <h2>Add Class Materials</h2>
+                            <form onSubmit={(e) => { e.preventDefault(); handleAddMaterials(); }}>
+                                <div className='addClass-div'>
+                                    <label>Select Course:</label>
+                                    <select required className='select'>
+                                        {userData.courses.map((course, index) => (
+                                            <option value={course} key={index}>
+                                                {course}
+                                            </option>
+                                        ))}
+                                    </select> <br></br>
+                                </div>
+                                <div className='addClass-div'>
+                                    <label>Name:</label>
+                                    <input
+                                        type='text'
+                                        value={materialTopic}
+                                        onChange={(e) => setMaterialTopic(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                                <div className='addClass-div'>
+                                    <label>Upload File:</label>
+                                    <input type='file' onChange={handleFileChange} required />
+                                </div>
+                                <button className='announcement-modal-button' type='submit'>Add Material</button>
                             </form>
                         </div>
                     </Modal>
