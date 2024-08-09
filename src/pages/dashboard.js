@@ -352,6 +352,8 @@ function Dashboard() {
 
     const handleAddMaterials = async () => {
 
+        setLoading(true);
+
         const course = document.querySelector('.select').value;
         if (!selectedFile) return;
 
@@ -375,6 +377,7 @@ function Dashboard() {
             // Reset file input
             setSelectedFile(null);
             setIsMaterialsModalOpen(false);
+            setLoading(false);
         } catch (error) {
             console.error("Error uploading file: ", error);
         }
@@ -528,7 +531,7 @@ function Dashboard() {
                                                         <div className='materials-1'>
                                                             <div className='materials-div'>
                                                                 <span className="material-symbols-outlined">book</span>
-                                                                <p className='materials-name'>{material.topic}</p>
+                                                                <p className='materials-name'>{material.topic} <span>({material.course})</span></p>
                                                             </div>
                                                             <div className='size-div'>
                                                                 <span className='size'>({(material.size / (1024 * 1024)).toFixed(2)} MB)</span>
