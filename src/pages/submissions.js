@@ -184,6 +184,24 @@ function Submissions() {
   }
 
 
+  const handleViewSubmissions = (course) => {
+    const courseCollectionMap = {
+      'Graphic Design': 'https://docs.google.com/spreadsheets/d/1PBggVFimkIQ_kpxDb49KH1YuB_ZjB1V59DSsL2KgTrM/edit?usp=sharing',
+      'Web Development': 'wd',
+      'Video Editing': 'https://docs.google.com/spreadsheets/d/1Rqa9GH4wc4kMWzJlIdxfJhrMWMaG_KDmM8EHwiCzz5g/edit?usp=sharing',
+    };
+
+    const courseCollection = courseCollectionMap[course];
+
+    if (!courseCollection) {  
+      setError('Invalid course selected.');
+      return;
+    }
+
+    window.open(courseCollection, '_blank');
+  };
+
+
   const modules = {
     toolbar: [
       [{ 'header': '1'}, { 'header': '2'},{ 'header': '3'}, { 'font': [] }],
@@ -344,7 +362,7 @@ return (
                                     <p className='assignment-handle-deadline'>Deadline : {format(clickedAssignment.deadline, 'yyyy-MM-dd')}</p>
                                 )}
                                 <div className='dash-line'></div>
-                                <button className='announcement-modal-button assign-btn' >View Submissions</button>
+                                <button onClick= {(e)=>{handleViewSubmissions(clickedAssignment.course)}} className='announcement-modal-button assign-btn' >View Submissions</button>
                             </div>
                         )}
                     </div>
