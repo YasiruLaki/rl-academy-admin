@@ -11,7 +11,7 @@ import LoadingScreen from '../components/loadingScreen';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import axios from 'axios';
-import { se } from 'date-fns/locale';
+import { fi, se } from 'date-fns/locale';
 
 
 function Dashboard() {
@@ -117,54 +117,6 @@ function Dashboard() {
         }
     }, [userData]);
 
-    useEffect(() => {
-        const fetchUpcomingClasses = async () => {
-            if (userData && userData.courses) {
-                try {
-                    const classesRef = collection(firestore, 'classes');
-                    const q = query(classesRef, where('course', 'in', userData.courses));
-                    const querySnapshot = await getDocs(q);
-                    const classes = [];
-                    querySnapshot.forEach(doc => {
-                        const data = doc.data();
-                        data.id = doc.id;
-
-
-                        if (data.time && data.time.seconds) {
-                            data.time = new Date(data.time.seconds * 1000 + data.time.nanoseconds / 1000000);
-                        } else {
-                            console.warn('Invalid time format:', data.time);
-                        }
-
-                        // Set end time to 1 hour after start time
-                        const durationMs = 1 * 60 * 60 * 1000; // 1 hour in milliseconds
-                        data.endTime = new Date(data.time.getTime() + durationMs);
-
-                        classes.push(data);
-                    });
-
-                    console.log('All classes:', classes);
-
-                    const now = new Date();
-
-                    const upcomingClasses = classes
-                        .filter(c => c.endTime > now)  // Filter based on end time
-                        .sort((a, b) => a.time - b.time);  // Sort based on start time
-
-
-                    setUpcomingClass(upcomingClasses);
-                } catch (error) {
-                    setError('Failed to fetch upcoming classes. Please try again.');
-                }
-                setLoading(false);
-            }
-        };
-
-        if (userData) {
-            fetchUpcomingClasses();
-        }
-    }, [userData]);
-
     // Fetch announcements
     const fetchAnnouncements = async () => {
         try {
@@ -243,7 +195,9 @@ function Dashboard() {
 
     const handleScheduleMeeting = async () => {
         const course = document.querySelector('.select').value;
+
         try {
+            setLoading(true);
             const response = await fetch('https://rla-backend.netlify.app/schedule-meeting', {
                 method: 'POST',
                 headers: {
@@ -273,11 +227,64 @@ function Dashboard() {
                 course: course,
             });
 
-            console.log('Meeting details saved to Firestore');
+            setIsAddClassModalOpen(false);
+
+
         } catch (error) {
             console.error('Error scheduling meeting:', error);
+        } finally {
+            setLoading(false);
         }
+
     };
+
+    useEffect(() => {
+        const fetchUpcomingClasses = async () => {
+            if (userData && userData.courses) {
+                try {
+                    const classesRef = collection(firestore, 'classes');
+                    const q = query(classesRef, where('course', 'in', userData.courses));
+                    const querySnapshot = await getDocs(q);
+                    const classes = [];
+                    querySnapshot.forEach(doc => {
+                        const data = doc.data();
+                        data.id = doc.id;
+
+
+                        if (data.time && data.time.seconds) {
+                            data.time = new Date(data.time.seconds * 1000 + data.time.nanoseconds / 1000000);
+                        } else {
+                            console.warn('Invalid time format:', data.time);
+                        }
+
+                        // Set end time to 1 hour after start time
+                        const durationMs = 1 * 60 * 60 * 1000; // 1 hour in milliseconds
+                        data.endTime = new Date(data.time.getTime() + durationMs);
+
+                        classes.push(data);
+                    });
+
+                    console.log('All classes:', classes);
+
+                    const now = new Date();
+
+                    const upcomingClasses = classes
+                        .filter(c => c.endTime > now)  // Filter based on end time
+                        .sort((a, b) => a.time - b.time);  // Sort based on start time
+
+
+                    setUpcomingClass(upcomingClasses);
+                } catch (error) {
+                    setError('Failed to fetch upcoming classes. Please try again.');
+                }
+                setLoading(false);
+            }
+        };
+
+        if (userData) {
+            fetchUpcomingClasses();
+        }
+    }, [userData]);
 
     const checkMeetingStatus = async (meetingId) => {
         try {
