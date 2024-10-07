@@ -187,7 +187,7 @@ function Submissions() {
   const handleViewSubmissions = (course) => {
     const courseCollectionMap = {
       'Graphic Design': 'https://docs.google.com/spreadsheets/d/1PBggVFimkIQ_kpxDb49KH1YuB_ZjB1V59DSsL2KgTrM/edit?usp=sharing',
-      'Web Development': 'wd',
+      'Web Development': 'https://docs.google.com/spreadsheets/d/1D7ZC2csQZzNm82SDHSg3F-3YHtAyCo9jJUBVtBwFkew/edit?usp=sharing',
       'Video Editing': 'https://docs.google.com/spreadsheets/d/1Rqa9GH4wc4kMWzJlIdxfJhrMWMaG_KDmM8EHwiCzz5g/edit?usp=sharing',
     };
 
